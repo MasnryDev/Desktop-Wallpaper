@@ -6,1151 +6,260 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    /* ─── Tokens — matches walterck.com ─── */
     :root {
-      --bg:        #05070a;
-      --bg2:       #0f1419;
-      --accent:    #6b8cff;
-      --accent2:   #5be6c0;
-      --glow:      rgba(107,140,255,0.25);
-      --glow2:     rgba(91,230,192,0.18);
-      --text:      #e6eef6;
-      --muted:     #94a3b8;
-      --glass:     rgba(255,255,255,0.03);
-      --border:    rgba(255,255,255,0.08);
-      --radius:    16px;
-      --shadow:    0 12px 40px rgba(0,0,0,0.6);
-      --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-      --font:      'Oxanium', sans-serif;
+      --bg: #05070a;
+      --accent: #6b8cff;
+      --accent2: #5be6c0;
+      --text: #e6eef6;
+      --muted: #94a3b8;
+      --border: rgba(255,255,255,.08);
+      --radius: 16px;
+      --font: 'Oxanium', sans-serif;
     }
-
-    /* ─── Reset ─── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%; height: 100%; overflow: hidden;
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
-      user-select: none;
-      -webkit-font-smoothing: antialiased;
+      font-family: var(--font); background: var(--bg); color: var(--text);
+      user-select: none; -webkit-font-smoothing: antialiased;
     }
-
-    /* ─── Background layers ─── */
     #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-
-    .glow-orb {
-      position: fixed; border-radius: 50%; filter: blur(90px);
-      pointer-events: none; z-index: 0;
-    }
-    .glow-orb.a {
-      width: 600px; height: 600px;
-      top: -150px; left: -100px;
-      background: radial-gradient(circle, rgba(107,140,255,0.10) 0%, transparent 70%);
-    }
-    .glow-orb.b {
-      width: 500px; height: 500px;
-      bottom: -100px; right: -80px;
-      background: radial-gradient(circle, rgba(91,230,192,0.08) 0%, transparent 70%);
-    }
-    .glow-orb.c {
-      width: 300px; height: 300px;
-      top: 40%; left: 50%; transform: translate(-50%,-50%);
-      background: radial-gradient(circle, rgba(107,140,255,0.05) 0%, transparent 70%);
-    }
-
-    /* Grid overlay */
+    .glow-orb { position: fixed; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: 0; }
+    .glow-orb.a { width: 600px; height: 600px; top: -150px; left: -100px; background: radial-gradient(circle, rgba(107,140,255,.10), transparent 70%); }
+    .glow-orb.b { width: 500px; height: 500px; bottom: -100px; right: -80px; background: radial-gradient(circle, rgba(91,230,192,.08), transparent 70%); }
+    .glow-orb.c { width: 300px; height: 300px; top: 40%; left: 50%; transform: translate(-50%,-50%); background: radial-gradient(circle, rgba(107,140,255,.05), transparent 70%); }
     .grid-overlay {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background-image:
-        linear-gradient(rgba(107,140,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(107,140,255,0.025) 1px, transparent 1px);
+      background-image: linear-gradient(rgba(107,140,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(107,140,255,.025) 1px, transparent 1px);
       background-size: 60px 60px;
     }
-
-    /* Rain */
     .rain { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
-    .drop {
-      position: absolute; top: -40px;
-      width: 1px; height: 32px;
-      background: linear-gradient(to bottom, transparent, rgba(107,140,255,0.3));
-      animation: fall linear infinite;
-      border-radius: 1px;
-    }
-    @keyframes fall {
-      to { transform: translateY(110vh); }
-    }
+    .drop { position: absolute; top: -40px; width: 1px; height: 32px; background: linear-gradient(to bottom, transparent, rgba(107,140,255,.3)); animation: fall linear infinite; border-radius: 1px; }
+    @keyframes fall { to { transform: translateY(110vh); } }
+    .scanline { position: fixed; inset: 0; z-index: 2; pointer-events: none; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.025) 2px, rgba(0,0,0,.025) 4px); }
 
-    /* Scan line */
-    .scanline {
-      position: fixed; inset: 0; z-index: 2; pointer-events: none;
-      background: repeating-linear-gradient(
-        0deg, transparent, transparent 2px,
-        rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px
-      );
-    }
-
-    /* ─── Layout ─── */
     #app {
-      position: relative; z-index: 10;
-      width: 100vw; height: 100vh;
-      display: grid;
-      grid-template-columns: 300px 1fr 280px;
-      grid-template-rows: 1fr;
-      gap: 20px;
-      padding: 28px;
-      pointer-events: none;
+      position: relative; z-index: 10; width: 100vw; height: 100vh;
+      display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+      grid-template-rows: 1fr; gap: 24px; padding: 28px;
     }
-    #app > * { pointer-events: all; }
-
-    /* ─── Panel base — matches walterck.com .card ─── */
     .panel {
-      background: rgba(255,255,255,0.02);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      padding: 20px;
-      position: relative;
-      overflow: hidden;
-      transition: var(--transition);
-    }
-    .panel::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(107,140,255,0.03) 0%, transparent 60%);
-      pointer-events: none;
-      border-radius: var(--radius);
-    }
-    .panel-title {
-      font-size: 0.95rem; font-weight: 700;
-      letter-spacing: 0.04em;
-      color: var(--text); margin-bottom: 16px;
-      display: flex; align-items: center; gap: 7px;
-    }
-
-    /* ─── Clock — spans full height, centred ─── */
-    #clock-panel {
-      grid-column: 2;
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: flex-start; padding: 14vh 28px 22px;
-      background: transparent; border: none;
-      backdrop-filter: none;
-    }
-    #clock-panel::before { display: none; }
-
-    #time-display {
-      font-size: clamp(4rem, 7vw, 7rem);
-      font-weight: 800; letter-spacing: -0.04em;
-      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 65%);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-      line-height: 1;
-      filter: drop-shadow(0 0 40px rgba(107,140,255,0.45));
-    }
-    #date-display {
-      font-size: 0.92rem; font-weight: 400; color: var(--muted);
-      letter-spacing: 0.08em; margin-top: 10px;
-      text-transform: uppercase;
-    }
-
-    /* ─── Lists ─── */
-    #lists-panel {
-      grid-column: 1;
-      display: flex; flex-direction: column;
-      overflow: hidden;
-    }
-
-    /* Scrollable notes wrapper — mirrors tuya-wrapper/tuya-content */
-    #notes-wrapper {
-      flex: 1; min-height: 0;
-      position: relative;
-    }
-    #notes-content {
-      height: 100%;
-      overflow-y: auto; overflow-x: hidden;
-      scrollbar-width: none;
-      display: flex; flex-direction: column; gap: 10px;
-      padding-top: 3px; padding-bottom: 4px;
-    }
-    #notes-content::-webkit-scrollbar { display: none; }
-
-    /* Hover scroll zones — same as tuya */
-    #notes-scroll-top, #notes-scroll-bottom {
-      position: absolute; left: 0; right: 0; height: 48px;
-      z-index: 12; pointer-events: all;
-    }
-    #notes-scroll-top    { top: 0; }
-    #notes-scroll-bottom { bottom: 0; }
-    #notes-scroll-top.hidden, #notes-scroll-bottom.hidden { pointer-events: none; }
-
-    /* Dynamic note blocks — generated by JS */
-    .list-block {
-      flex-shrink: 0;           /* never compress */
-      display: flex; flex-direction: column;
-    }
-    .list-label {
-      font-size: 0.58rem; font-weight: 700;
-      letter-spacing: 0.16em; text-transform: uppercase;
-      color: var(--muted); margin-bottom: 6px; padding-left: 2px;
-      flex-shrink: 0;
-    }
-    .list-box {
-      /* 4 lines minimum: font-size 0.82rem * line-height 1.65 * 4 + padding */
-      min-height: calc(0.82rem * 1.65 * 4 + 20px);
-      background: rgba(255,255,255,0.025);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-family: var(--font);
-      font-size: 0.82rem; line-height: 1.65;
-      color: var(--text);
-      outline: none;
-      overflow-y: visible;      /* show full content, panel scrolls */
-      overflow-x: hidden;
-      white-space: pre-wrap; word-break: break-word;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      user-select: text;
-    }
-    .list-box:focus {
-      border-color: rgba(107,140,255,0.4);
-      box-shadow: 0 0 0 2px rgba(107,140,255,0.07), 0 0 18px rgba(107,140,255,0.05);
-      background: rgba(255,255,255,0.035);
-    }
-
-    /* Empty/loading state */
-    #notes-loading {
-      font-size: 0.72rem; color: var(--muted);
-      text-align: center; padding: 20px 0;
-      letter-spacing: 0.06em;
-    }
-
-    /* ─── Notes panel header row ─── */
-    #notes-header {
-      display: flex; align-items: center;
-      margin-bottom: 16px; flex-shrink: 0;
-    }
-    #notes-header .panel-title { margin-bottom: 0; flex: 1; }
-
-    #btn-new-note {
-      width: 22px; height: 22px; border-radius: 6px;
-      background: rgba(107,140,255,0.1);
-      border: 1px solid rgba(107,140,255,0.2);
-      color: var(--accent); font-size: 0.9rem; line-height: 1;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-      flex-shrink: 0;
-    }
-    #btn-new-note:hover {
-      background: rgba(107,140,255,0.22);
-      border-color: rgba(107,140,255,0.45);
-      box-shadow: 0 0 10px rgba(107,140,255,0.15);
-    }
-
-    .reorder-input {
-      width: 32px; padding: 1px 4px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(107,140,255,0.4);
-      border-radius: 4px;
-      color: var(--accent); font-family: var(--font);
-      font-size: 0.68rem; text-align: center;
-      outline: none;
-    }
-    .reorder-input::-webkit-inner-spin-button,
-    .reorder-input::-webkit-outer-spin-button { -webkit-appearance: none; }
-
-    /* Delete × button on each note label row */
-    .list-label-row {
-      display: flex; align-items: center;
-      margin-bottom: 6px; flex-shrink: 0;
-    }
-    .list-label-row .list-label { margin-bottom: 0; flex: 1; }
-    .btn-delete-note, .btn-rename-note {
-      width: 16px; height: 16px; border-radius: 4px;
-      background: transparent; border: none;
-      color: var(--muted); font-size: 0.7rem; line-height: 1;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; opacity: 0;
-      transition: opacity 0.15s, color 0.15s, background 0.15s;
-      flex-shrink: 0;
-    }
-    .list-block:hover .btn-delete-note,
-    .list-block:hover .btn-rename-note { opacity: 1; }
-    .btn-delete-note:hover { color: #ff6b6b; }
-    .btn-delete-note.armed { color: #22c55e; opacity: 1; }
-    .btn-rename-note:hover { color: var(--accent); }
-    /* Inline rename — label becomes an input */
-    .list-label[contenteditable="true"] {
-      outline: none;
-      border-bottom: 1px solid rgba(107,140,255,0.5);
-      color: var(--accent);
-      cursor: text;
-      min-width: 30px;
-    }
-
-    /* Inline create form */
-    #new-note-form {
-      display: none; flex-direction: row; gap: 6px;
-      align-items: center; flex-shrink: 0;
-      margin-bottom: 4px;
-    }
-    #new-note-form.visible { display: flex; }
-    #new-note-input {
-      flex: 1;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(107,140,255,0.3);
-      border-radius: 8px;
-      padding: 5px 10px;
-      font-family: var(--font); font-size: 0.78rem;
-      color: var(--text); outline: none;
-      letter-spacing: 0.04em;
-    }
-    #new-note-input::placeholder { color: var(--muted); }
-    #new-note-input:focus { border-color: rgba(107,140,255,0.6); }
-    #btn-confirm-note {
-      padding: 5px 10px; border-radius: 8px;
-      background: rgba(107,140,255,0.15);
-      border: 1px solid rgba(107,140,255,0.3);
-      color: var(--accent); font-family: var(--font);
-      font-size: 0.72rem; font-weight: 700;
-      cursor: pointer; letter-spacing: 0.06em;
-      transition: background 0.2s, border-color 0.2s;
-    }
-    #btn-confirm-note:hover { background: rgba(107,140,255,0.28); border-color: rgba(107,140,255,0.5); }
-    #btn-cancel-note {
-      padding: 5px 8px; border-radius: 8px;
-      background: transparent; border: 1px solid var(--border);
-      color: var(--muted); font-family: var(--font);
-      font-size: 0.72rem; cursor: pointer;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    #btn-cancel-note:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
-
-    /* ─── Smart Devices panel ─── */
-    #tuya-panel {
-      grid-column: 3;
-      display: flex; flex-direction: column;
-      overflow: hidden;
-    }
-    #tuya-wrapper {
-      flex: 1; min-height: 0;
-      position: relative;
-    }
-    #tuya-content {
-      height: 100%;
-      overflow-y: auto; overflow-x: hidden;
-      scrollbar-width: none;
-      padding-top: 3px;
-    }
-    #tuya-content::-webkit-scrollbar { display: none; }
-
-    /* Tuya hover scroll zones */
-    #scroll-zone-top, #scroll-zone-bottom {
-      position: absolute; left: 0; right: 0; height: 48px;
-      z-index: 12; pointer-events: all;
-    }
-    #scroll-zone-top    { top: 0; }
-    #scroll-zone-bottom { bottom: 0; }
-    #scroll-zone-top.hidden, #scroll-zone-bottom.hidden { pointer-events: none; }
-
-    #server-status {
-      display: flex; align-items: center; gap: 8px;
-      margin-bottom: 16px; flex-shrink: 0;
-    }
-    .status-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: #ff4545; flex-shrink: 0;
-      transition: background 0.3s;
-      box-shadow: 0 0 8px rgba(255,69,69,0.6);
-    }
-    .status-dot.online {
-      background: var(--accent2);
-      box-shadow: 0 0 8px rgba(91,230,192,0.6);
-    }
-
-    #status-text { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.05em; }
-
-    #scripts-list {
-      display: flex; flex-direction: column; gap: 8px;
-    }
-
-    /* Script buttons — match walterck.com card hover style */
-    .script-btn, .script-btn * {
-      cursor: pointer;
-    }
-    .script-btn {
-      display: flex; align-items: center; gap: 11px;
-      padding: 11px 14px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      color: var(--text); font-family: var(--font);
-      font-size: 0.8rem; font-weight: 600;
-      cursor: pointer; text-align: left;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      letter-spacing: 0.02em;
+      background: rgba(255,255,255,.02); border: 1px solid var(--border); border-radius: var(--radius);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 20px;
       position: relative; overflow: hidden;
     }
-    .script-btn::after {
+    .panel::before {
       content: ''; position: absolute; inset: 0;
-      background: linear-gradient(90deg, rgba(107,140,255,0) 0%, rgba(107,140,255,0.06) 100%);
-      opacity: 0; transition: opacity 0.3s;
+      background: linear-gradient(135deg, rgba(107,140,255,.03), transparent 60%);
+      pointer-events: none; border-radius: var(--radius);
     }
-    .script-btn:hover {
-      border-color: var(--accent);
-      background: rgba(255,255,255,0.05);
-      transform: translateY(-2px);
-      box-shadow: var(--shadow);
+    #notes-panel { display: flex; flex-direction: column; min-height: 0; }
+    #notes-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; flex-shrink: 0; }
+    .panel-title { font-size: .95rem; font-weight: 700; letter-spacing: .04em; color: var(--text); }
+    #save-status { color: var(--muted); font-size: .62rem; letter-spacing: .05em; }
+    #notes-content { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(107,140,255,.25) transparent; display: flex; flex-direction: column; gap: 16px; padding: 2px 3px 4px 0; }
+    .note-section { display: flex; flex-direction: column; flex-shrink: 0; }
+    .note-label { color: var(--muted); font-size: .62rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin: 0 0 7px 2px; }
+    .note-box {
+      min-height: 105px; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px;
+      background: rgba(255,255,255,.025); color: var(--text); font: 400 .82rem/1.65 var(--font);
+      outline: none; overflow-wrap: anywhere; white-space: pre-wrap; user-select: text;
+      transition: border-color .2s, box-shadow .2s, background .2s;
     }
-    .script-btn:hover::after { opacity: 1; }
-    .script-btn:active { transform: translateY(-1px) scale(0.99); }
-    .script-btn.fired {
-      border-color: #22c55e;
-      background: rgba(34,197,94,0.12);
-      box-shadow: 0 0 18px rgba(34,197,94,0.3);
+    .note-box:empty::before { content: attr(data-placeholder); color: rgba(148,163,184,.65); pointer-events: none; }
+    .note-box:focus { border-color: rgba(107,140,255,.4); box-shadow: 0 0 0 2px rgba(107,140,255,.07), 0 0 18px rgba(107,140,255,.05); background: rgba(255,255,255,.035); }
+    #clock-panel { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 14vh 20px 22px; min-width: 0; }
+    #time-display {
+      font-size: clamp(4rem, 8vw, 7rem); font-weight: 800; letter-spacing: -.04em;
+      background: linear-gradient(135deg, #fff 0%, var(--accent) 65%);
+      -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1;
+      filter: drop-shadow(0 0 40px rgba(107,140,255,.45));
     }
-
-    .btn-icon {
-      width: 28px; height: 28px; border-radius: 8px;
-      background: rgba(107,140,255,0.1);
-      border: 1px solid rgba(107,140,255,0.18);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; font-size: 0.85rem;
-      transition: background 0.2s;
-    }
-    .script-btn:hover .btn-icon {
-      background: rgba(107,140,255,0.2);
-      border-color: rgba(107,140,255,0.35);
-    }
-    .btn-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .btn-arrow { font-size: 0.6rem; color: var(--muted); opacity: 0; transition: opacity 0.2s; }
-    .script-btn:hover .btn-arrow { opacity: 1; }
-
-    .no-server {
-      font-size: 0.75rem; color: var(--muted); line-height: 1.65;
-      padding: 14px 0; text-align: center;
-    }
-    .no-server strong { color: var(--accent); display: block; margin-bottom: 8px; font-size: 0.8rem; }
-
-    /* ─── Particles ─── */
-    .particle {
-      position: fixed; pointer-events: none; z-index: 1;
-      border-radius: 50%;
-      background: var(--accent);
-      animation: float-up linear infinite;
-    }
-    @keyframes float-up {
-      0%   { transform: translateY(0) scale(1); opacity: var(--op); }
-      100% { transform: translateY(-100vh) scale(0); opacity: 0; }
-    }
-
-    /* ─── Lightning flash ─── */
-    #flash {
-      position: fixed; inset: 0; z-index: 50;
-      background: rgba(107,140,255,0.05);
-      pointer-events: none; opacity: 0;
-      transition: opacity 0.05s;
-    }
-
-    /* ─── Cat photo ─── */
+    #date-display { font-size: .92rem; color: var(--muted); letter-spacing: .08em; margin-top: 10px; text-transform: uppercase; text-align: center; }
+    .particle { position: fixed; pointer-events: none; z-index: 1; border-radius: 50%; background: var(--accent); animation: float-up linear infinite; }
+    @keyframes float-up { 0% { transform: translateY(0) scale(1); opacity: var(--op); } 100% { transform: translateY(-100vh) scale(0); opacity: 0; } }
+    #flash { position: fixed; inset: 0; z-index: 50; background: rgba(107,140,255,.05); pointer-events: none; opacity: 0; transition: opacity .05s; }
     #photo-bg {
-      position: fixed;
-      bottom: -160px;
-      left: 50%;
-      transform: translateX(-50%);
-      height: 80vh;
-      width: auto;
-      z-index: 3;
-      pointer-events: none;
-      opacity: 0.5;
-      mix-blend-mode: screen;
-      -webkit-mask-image: radial-gradient(ellipse 80% 72% at 57% 58%, black 45%, rgba(0,0,0,0.5) 65%, transparent 90%);
-      mask-image: radial-gradient(ellipse 75% 70% at 60% 25%, black 40%, rgba(0, 0, 0, 0.5) 62%, transparent 85%)
+      position: fixed; bottom: -160px; left: 50%; transform: translateX(-50%); height: 80vh; width: auto;
+      z-index: 3; pointer-events: none; opacity: .5; mix-blend-mode: screen;
+      -webkit-mask-image: radial-gradient(ellipse 80% 72% at 57% 58%, #000 45%, rgba(0,0,0,.5) 65%, transparent 90%);
+      mask-image: radial-gradient(ellipse 75% 70% at 60% 25%, #000 40%, rgba(0,0,0,.5) 62%, transparent 85%);
     }
-
-    /* ─── Responsive ─── */
-    @media (max-width: 1200px) {
-      #app { grid-template-columns: 260px 1fr 240px; padding: 20px; gap: 16px; }
+    @media (max-width: 760px) {
+      html, body { overflow: auto; }
+      #app { min-height: 100vh; height: auto; grid-template-columns: 1fr; grid-template-rows: auto auto; gap: 14px; padding: 16px; }
+      #clock-panel { grid-row: 1; padding: 7vh 8px 4vh; }
+      #notes-panel { grid-row: 2; min-height: 55vh; }
+      #time-display { font-size: clamp(3.2rem, 14vw, 6rem); }
+      #photo-bg { height: 55vh; opacity: .3; }
     }
-    @media (max-width: 900px) {
-      #app {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto 1fr;
-        overflow-y: auto;
-      }
-      #clock-panel { grid-column: 1 / 3; grid-row: 1; height: auto; min-height: 120px; }
-      #lists-panel { grid-column: 1; grid-row: 2; }
-      #tuya-panel  { grid-column: 2; grid-row: 2; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
     }
   </style>
 </head>
 <body>
-
-  <!-- Background -->
-  <canvas id="bg-canvas"></canvas>
-  <div class="glow-orb a"></div>
-  <div class="glow-orb b"></div>
-  <div class="glow-orb c"></div>
-  <div class="grid-overlay"></div>
-  <div class="rain" id="rain"></div>
-  <div class="scanline"></div>
-  <div id="flash"></div>
-
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="glow-orb a" aria-hidden="true"></div>
+  <div class="glow-orb b" aria-hidden="true"></div>
+  <div class="glow-orb c" aria-hidden="true"></div>
+  <div class="grid-overlay" aria-hidden="true"></div>
+  <div class="rain" id="rain" aria-hidden="true"></div>
+  <div class="scanline" aria-hidden="true"></div>
+  <div id="flash" aria-hidden="true"></div>
   <img id="photo-bg" src="cat.png" alt="">
 
-  <!-- App -->
-  <div id="app">
+  <main id="app">
+    <section id="notes-panel" class="panel" aria-label="Notes">
+      <header id="notes-header">
+        <h1 class="panel-title">📋 Notes</h1>
+        <span id="save-status" role="status" aria-live="polite">SAVED ON THIS PC</span>
+      </header>
+      <div id="notes-content">
+        <section class="note-section">
+          <h2 class="note-label">Todo</h2>
+          <div class="note-box" contenteditable="true" role="textbox" aria-label="Todo notes" aria-multiline="true" spellcheck="false" data-note="todo" data-placeholder="Add tasks to do…"></div>
+        </section>
+        <section class="note-section">
+          <h2 class="note-label">Assessments</h2>
+          <div class="note-box" contenteditable="true" role="textbox" aria-label="Assessment notes" aria-multiline="true" spellcheck="false" data-note="assessments" data-placeholder="Track assessments and due dates…"></div>
+        </section>
+        <section class="note-section">
+          <h2 class="note-label">Important Dates</h2>
+          <div class="note-box" contenteditable="true" role="textbox" aria-label="Important dates" aria-multiline="true" spellcheck="false" data-note="important-dates" data-placeholder="Add important dates…"></div>
+        </section>
+      </div>
+    </section>
 
-    <!-- ── NOTES (left) — dynamically populated ── -->
-    <div id="lists-panel" class="panel">
-      <div id="notes-header">
-        <div class="panel-title">📋Notes</div>
-        <button id="btn-new-note">+</button>
-      </div>
-      <div id="new-note-form">
-        <input id="new-note-input" type="text" placeholder="Note name…" spellcheck="false" maxlength="40">
-        <button id="btn-confirm-note">Add</button>
-        <button id="btn-cancel-note">✕</button>
-      </div>
-      <div id="notes-wrapper">
-        <div id="notes-scroll-top"></div>
-        <div id="notes-scroll-bottom"></div>
-        <div id="notes-content">
-          <div id="notes-loading">Loading…</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── CLOCK (centre, spans full height) ── -->
-    <div id="clock-panel">
+    <section id="clock-panel" aria-label="Clock">
       <div id="time-display">00:00:00</div>
-      <div id="date-display">Thursday, 16 April</div>
-    </div>
-
-    <!-- ── LIGHTING & SMART DEVICES (right) ── -->
-    <div id="tuya-panel" class="panel">
-      <div class="panel-title">⚡Smart Devices &amp; Lighting</div>
-      <div id="server-status">
-        <div class="status-dot" id="status-dot"></div>
-        <span id="status-text">Connecting…</span>
-      </div>
-      <div id="tuya-wrapper">
-        <div id="scroll-zone-top"></div>
-        <div id="scroll-zone-bottom"></div>
-        <div id="tuya-content" style="position:relative;">
-          <div id="scripts-list">
-            <div class="no-server">
-              <strong>Server not detected</strong>
-              Run <code style="color:var(--accent2)">server.py</code> to enable scene buttons.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
+      <div id="date-display"></div>
+    </section>
+  </main>
 
   <script>
-  /* ══════════════════════════════════════════
-     RAIN
-  ══════════════════════════════════════════ */
-  (function () {
-    const rain = document.getElementById('rain');
-    for (let i = 0; i < 120; i++) {
-      const d = document.createElement('div');
-      d.className = 'drop';
-      d.style.left = Math.random() * 100 + 'vw';
-      const dur = (Math.random() * 2.5 + 1.8).toFixed(2);
-      d.style.animationDuration = dur + 's';
-      d.style.animationDelay = (-Math.random() * 5).toFixed(2) + 's';
-      d.style.opacity = (Math.random() * 0.45 + 0.04).toFixed(2);
-      d.style.height = (Math.random() * 22 + 14) + 'px';
-      rain.appendChild(d);
-    }
-  })();
-
-  /* ══════════════════════════════════════════
-     FLOATING PARTICLES
-  ══════════════════════════════════════════ */
-  (function () {
-    for (let i = 0; i < 20; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      const size = Math.random() * 2.5 + 0.5;
-      const op   = (Math.random() * 0.12 + 0.02).toFixed(3);
-      p.style.cssText = `
-        left: ${Math.random() * 100}%;
-        bottom: -10px;
-        width: ${size}px; height: ${size}px;
-        --op: ${op};
-        animation-duration: ${(Math.random() * 18 + 10).toFixed(1)}s;
-        animation-delay: ${(-Math.random() * 20).toFixed(1)}s;
-      `;
-      document.body.appendChild(p);
-    }
-  })();
-
-  /* ══════════════════════════════════════════
-     BACKGROUND CANVAS — aurora lines
-  ══════════════════════════════════════════ */
-  (function () {
-    const cvs = document.getElementById('bg-canvas');
-    const ctx = cvs.getContext('2d');
-    let W, H, t = 0;
-
-    function resize() {
-      W = cvs.width  = window.innerWidth;
-      H = cvs.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    const lines = Array.from({ length: 5 }, (_, i) => ({
-      phase: (i / 5) * Math.PI * 2,
-      amp:   60 + i * 20,
-      speed: 0.0004 + i * 0.00015,
-      y:     0.2 + i * 0.15,
-      alpha: 0.015 + i * 0.005,
-    }));
-
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      t += 0.6;
-      lines.forEach(l => {
-        ctx.beginPath();
-        for (let x = 0; x <= W; x += 3) {
-          const y = H * l.y + Math.sin(x * 0.004 + t * l.speed * 1000 + l.phase) * l.amp;
-          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = `rgba(107,140,255,${l.alpha})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      });
-      requestAnimationFrame(draw);
-    }
-    draw();
-  })();
-
-  /* ══════════════════════════════════════════
-     CLOCK
-  ══════════════════════════════════════════ */
-  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const MONTHS = ['January','February','March','April','May','June',
-                  'July','August','September','October','November','December'];
-
-  function pad(n) { return String(n).padStart(2, '0'); }
-
-  function updateClock() {
-    const now = new Date();
-    document.getElementById('time-display').textContent =
-      `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    document.getElementById('date-display').textContent =
-      `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]}`;
-  }
-
-  setInterval(updateClock, 1000);
-  updateClock();
-
-  /* ══════════════════════════════════════════
-     OCCASIONAL LIGHTNING FLASH
-  ══════════════════════════════════════════ */
-  (function lightningLoop() {
-    const flash = document.getElementById('flash');
-    const delay = 8000 + Math.random() * 20000;
-    setTimeout(() => {
-      flash.style.opacity = '1';
-      setTimeout(() => {
-        flash.style.opacity = '0';
-        setTimeout(() => {
-          flash.style.opacity = '1';
-          setTimeout(() => { flash.style.opacity = '0'; lightningLoop(); }, 80);
-        }, 120);
-      }, 60);
-    }, delay);
-  })();
-
-  /* ══════════════════════════════════════════
-     NOTES — dynamic, driven by server /notes
-     Format: array of [title, content] pairs
-     Order = array order. One write per change.
-  ══════════════════════════════════════════ */
-  (function () {
-    const NOTES_URL  = 'http://localhost:8765/notes';
-    const panel      = document.getElementById('notes-content');
-    const loadingEl  = document.getElementById('notes-loading');
-    const newForm    = document.getElementById('new-note-form');
-    const newInput   = document.getElementById('new-note-input');
-    const btnNew     = document.getElementById('btn-new-note');
-    const btnConfirm = document.getElementById('btn-confirm-note');
-    const btnCancel  = document.getElementById('btn-cancel-note');
-
-    // Ordered list of [title, content] — source of truth for DOM order
-    let notePairs = [];
-    // title → { block, box, lbl }
-    const boxes = new Map();
-
-    // ── Hover-to-scroll ───────────────────────────────────────────────
-    (function () {
-      const content = document.getElementById('notes-content');
-      const zTop    = document.getElementById('notes-scroll-top');
-      const zBot    = document.getElementById('notes-scroll-bottom');
-      const SPEED   = 12;
-      let rafId = null, dir = 0;
-      function updateZones() {
-        zTop.classList.toggle('hidden', content.scrollTop <= 0);
-        zBot.classList.toggle('hidden', content.scrollTop + content.clientHeight >= content.scrollHeight - 1);
+    // Decorative rain drops.
+    (() => {
+      const rain = document.getElementById('rain');
+      for (let i = 0; i < 120; i++) {
+        const drop = document.createElement('div');
+        drop.className = 'drop';
+        drop.style.left = `${Math.random() * 100}vw`;
+        drop.style.animationDuration = `${(Math.random() * 2.5 + 1.8).toFixed(2)}s`;
+        drop.style.animationDelay = `${(-Math.random() * 5).toFixed(2)}s`;
+        drop.style.opacity = (Math.random() * .45 + .04).toFixed(2);
+        drop.style.height = `${Math.random() * 22 + 14}px`;
+        rain.appendChild(drop);
       }
-      function tick() { content.scrollTop += dir * SPEED; updateZones(); rafId = requestAnimationFrame(tick); }
-      function start(d) { dir = d; if (!rafId) rafId = requestAnimationFrame(tick); }
-      function stop()   { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
-      zTop.addEventListener('mouseenter', () => start(-1));
-      zTop.addEventListener('mouseleave', stop);
-      zBot.addEventListener('mouseenter', () => start(1));
-      zBot.addEventListener('mouseleave', stop);
-      content.addEventListener('scroll', updateZones);
-      new MutationObserver(updateZones).observe(content, { childList: true, subtree: true });
-      updateZones();
     })();
 
-    // ── Persist entire notePairs array to server ──────────────────────
-    let writeInProgress = false;
-    let writePending = false;
-    let lastEditTime = 0;
-    let lastSyncTime = 0;
-
-    async function persistAll() {
-      if (writeInProgress) {
-        writePending = true; // another write will run after this one finishes
-        return;
-      }
-      writeInProgress = true;
-      writePending = false;
-      const snapshot = JSON.stringify(notePairs);
-      const editedAt = lastEditTime;
-      try {
-        await fetch(NOTES_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: snapshot
-        });
-        if (lastEditTime === editedAt) lastSyncTime = Date.now();
-      } catch {}
-      writeInProgress = false;
-      // If anything changed while we were writing, write again immediately
-      if (writePending || lastEditTime > lastSyncTime) persistAll();
+    // Subtle floating particles.
+    for (let i = 0; i < 20; i++) {
+      const particle = document.createElement('div');
+      const size = Math.random() * 2.5 + .5;
+      particle.className = 'particle';
+      particle.style.cssText = `left:${Math.random() * 100}%;bottom:-10px;width:${size}px;height:${size}px;--op:${(Math.random() * .12 + .02).toFixed(3)};animation-duration:${(Math.random() * 18 + 10).toFixed(1)}s;animation-delay:${(-Math.random() * 20).toFixed(1)}s`;
+      document.body.appendChild(particle);
     }
 
-    let persistTimer = null;
-    function schedulePersist() {
-      lastEditTime = Date.now();
-      clearTimeout(persistTimer);
-      persistTimer = setTimeout(persistAll, 1500);
-    }
-
-    // ── Create note ───────────────────────────────────────────────────
-    btnNew.addEventListener('click', () => {
-      newForm.classList.add('visible');
-      newInput.value = '';
-      newInput.focus();
-    });
-    btnCancel.addEventListener('click', () => {
-      newForm.classList.remove('visible');
-      newInput.value = '';
-    });
-    btnConfirm.addEventListener('click', confirmCreate);
-    newInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') confirmCreate();
-      if (e.key === 'Escape') btnCancel.click();
-    });
-
-    async function confirmCreate() {
-      const title = newInput.value.trim();
-      if (!title || boxes.has(title)) return;
-      newForm.classList.remove('visible');
-      newInput.value = '';
-      notePairs.push([title, '']);
-      const { block, box, lbl } = makeBox(title, '');
-      panel.appendChild(block);
-      boxes.set(title, { block, box, lbl });
-      await persistAll();
-    }
-
-    // ── Delete note ───────────────────────────────────────────────────
-    async function deleteNote(title) {
-      const entry = boxes.get(title);
-      if (!entry) return;
-      entry.block.remove();
-      boxes.delete(title);
-      notePairs = notePairs.filter(([t]) => t !== title);
-      await persistAll();
-    }
-
-    // ── Reorder: move title to newPos (1-based) ───────────────────────
-    async function reorderNote(title, newPos) {
-      const idx = notePairs.findIndex(([t]) => t === title);
-      if (idx === -1) return;
-      const [pair] = notePairs.splice(idx, 1);
-      const pos = Math.max(0, Math.min(newPos - 1, notePairs.length));
-      notePairs.splice(pos, 0, pair);
-      // Re-append DOM blocks in new order
-      notePairs.forEach(([t]) => {
-        const entry = boxes.get(t);
-        if (entry) panel.appendChild(entry.block);
-      });
-      await persistAll();
-    }
-
-    // ── Rename note ───────────────────────────────────────────────────
-    async function renameNote(oldTitle, newTitle) {
-      if (!newTitle || newTitle === oldTitle || boxes.has(newTitle)) return oldTitle;
-      const idx = notePairs.findIndex(([t]) => t === oldTitle);
-      if (idx === -1) return oldTitle;
-      notePairs[idx][0] = newTitle;
-      const entry = boxes.get(oldTitle);
-      boxes.delete(oldTitle);
-      boxes.set(newTitle, entry);
-      await persistAll();
-      return newTitle;
-    }
-
-    // ── Build a note block ────────────────────────────────────────────
-    function makeBox(titleArg, content) {
-      let title = titleArg;
-      const block = document.createElement('div');
-      block.className = 'list-block';
-
-      const labelRow = document.createElement('div');
-      labelRow.className = 'list-label-row';
-
-      const lbl = document.createElement('div');
-      lbl.className = 'list-label';
-      lbl.textContent = title;
-
-      // ── Rename ────────────────────────────────────────────────────
-      const renameBtn = document.createElement('button');
-      renameBtn.className = 'btn-rename-note';
-      renameBtn.textContent = '✎';
-
-      renameBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        lbl.contentEditable = 'true';
-        lbl.focus();
-        const range = document.createRange();
-        const sel = window.getSelection();
-        range.selectNodeContents(lbl);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      });
-
-      lbl.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); lbl.blur(); }
-        if (e.key === 'Escape') { lbl.textContent = title; lbl.blur(); }
-      });
-
-      lbl.addEventListener('blur', async () => {
-        lbl.contentEditable = 'false';
-        const typed = lbl.textContent.trim();
-        if (!typed) { lbl.textContent = title; return; }
-        title = await renameNote(title, typed);
-        lbl.textContent = title;
-      });
-
-      // ── Reorder ───────────────────────────────────────────────────
-      const reorderBtn = document.createElement('button');
-      reorderBtn.className = 'btn-rename-note';
-      reorderBtn.textContent = '#';
-
-      const reorderInput = document.createElement('input');
-      reorderInput.className = 'reorder-input';
-      reorderInput.type = 'number';
-      reorderInput.min = '1';
-      reorderInput.style.display = 'none';
-
-      const reorderConfirm = document.createElement('button');
-      reorderConfirm.className = 'btn-rename-note reorder-confirm';
-      reorderConfirm.textContent = '✓';
-      reorderConfirm.style.display = 'none';
-
-      reorderBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const currentPos = notePairs.findIndex(([t]) => t === title) + 1;
-        reorderInput.value = currentPos || 1;
-        reorderInput.style.display = '';
-        reorderBtn.style.display = 'none';
-        reorderInput.focus();
-        reorderInput.select();
-      });
-
-      async function doReorder() {
-        const newPos = parseInt(reorderInput.value);
-        reorderInput.style.display = 'none';
-        reorderBtn.style.display = '';
-        if (!newPos) return;
-        await reorderNote(title, newPos);
-      }
-
-      reorderConfirm.addEventListener('click', (e) => { e.stopPropagation(); doReorder(); });
-      reorderInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') doReorder();
-        if (e.key === 'Escape') {
-          reorderInput.style.display = 'none';
-          reorderConfirm.style.display = 'none';
-          reorderBtn.style.display = '';
-        }
-      });
-
-      // ── Delete ────────────────────────────────────────────────────
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn-delete-note';
-      delBtn.textContent = '✕';
-      let armTimer = null;
-
-      delBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!delBtn.classList.contains('armed')) {
-          delBtn.classList.add('armed');
-          delBtn.textContent = '✓';
-          armTimer = setTimeout(() => {
-            delBtn.classList.remove('armed');
-            delBtn.textContent = '✕';
-            armTimer = null;
-          }, 1200);
-        } else {
-          clearTimeout(armTimer);
-          deleteNote(title);
-        }
-      });
-
-      labelRow.appendChild(lbl);
-      labelRow.appendChild(reorderBtn);
-      labelRow.appendChild(reorderInput);
-      labelRow.appendChild(renameBtn);
-      labelRow.appendChild(delBtn);
-
-      const box = document.createElement('div');
-      box.className = 'list-box';
-      box.contentEditable = 'true';
-      box.spellcheck = false;
-      box.innerText = content;
-
-      let inputTimer = null;
-      box.addEventListener('input', () => {
-        const idx = notePairs.findIndex(([t]) => t === title);
-        if (idx !== -1) notePairs[idx][1] = box.innerText;
-        schedulePersist();
-      });
-
-      block.appendChild(labelRow);
-      block.appendChild(box);
-      return { block, box, lbl };
-    }
-
-    // ── Load notes from server ────────────────────────────────────────
-    async function loadNotes() {
-      if (writeInProgress || lastEditTime > lastSyncTime) return;
-      try {
-        const r    = await fetch(NOTES_URL);
-        const data = await r.json();  // [[title, content], ...]
-
-        if (loadingEl) loadingEl.style.display = 'none';
-
-        // Build set of incoming titles
-        const incoming = new Map(data.map(([t, c]) => [t, c]));
-
-        // Remove notes no longer in server
-        boxes.forEach((_, t) => {
-          if (!incoming.has(t)) {
-            boxes.get(t).block.remove();
-            boxes.delete(t);
+    // Animated aurora lines.
+    (() => {
+      const canvas = document.getElementById('bg-canvas');
+      const ctx = canvas.getContext('2d');
+      let width = 0, height = 0, time = 0;
+      const resize = () => {
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      };
+      window.addEventListener('resize', resize);
+      resize();
+      const lines = Array.from({ length: 5 }, (_, i) => ({
+        phase: i / 5 * Math.PI * 2, amp: 60 + i * 20, speed: .0004 + i * .00015,
+        y: .2 + i * .15, alpha: .015 + i * .005
+      }));
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        time += .6;
+        for (const line of lines) {
+          ctx.beginPath();
+          for (let x = 0; x <= width; x += 3) {
+            const y = height * line.y + Math.sin(x * .004 + time * line.speed * 1000 + line.phase) * line.amp;
+            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
           }
-        });
+          ctx.strokeStyle = `rgba(107,140,255,${line.alpha})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
 
-        // Add new notes, update existing
-        data.forEach(([title, content]) => {
-          if (!boxes.has(title)) {
-            const { block, box, lbl } = makeBox(title, content);
-            panel.appendChild(block);
-            boxes.set(title, { block, box, lbl });
-          } else {
-            const { box } = boxes.get(title);
-            if (document.activeElement !== box && box.innerText !== content) {
-              box.innerText = content;
-            }
-          }
-        });
+    // Local clock.
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const pad = value => String(value).padStart(2, '0');
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('time-display').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      document.getElementById('date-display').textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
 
-        // Re-apply server order to DOM
-        data.forEach(([title]) => {
-          const entry = boxes.get(title);
-          if (entry) panel.appendChild(entry.block);
-        });
-
-        notePairs = data.map(([t, c]) => [t, c]);
-        lastSyncTime = Date.now();
-
+    // Notes are saved in this wallpaper's browser storage; no localhost server is needed.
+    (() => {
+      const storageKey = 'masnry-desktop-wallpaper-notes-v1';
+      const status = document.getElementById('save-status');
+      const editors = [...document.querySelectorAll('[data-note]')];
+      let saveTimer;
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        for (const editor of editors) {
+          editor.textContent = typeof saved[editor.dataset.note] === 'string' ? saved[editor.dataset.note] : '';
+        }
       } catch {
-        if (loadingEl) loadingEl.textContent = 'Could not reach server';
+        status.textContent = 'LOCAL STORAGE UNAVAILABLE';
       }
-    }
-
-    loadNotes();
-    setInterval(loadNotes, 10000);
-  })();
-
-  /* ══════════════════════════════════════════
-     SMART DEVICES / TUYA SERVER
-  ══════════════════════════════════════════ */
-  const SERVER = 'http://localhost:8765';
-  const dot    = document.getElementById('status-dot');
-  const stxt   = document.getElementById('status-text');
-  const sList  = document.getElementById('scripts-list');
-
-  // Custom device order — matched against script filenames (case-insensitive, partial)
-  const DEVICE_ORDER = [
-    'filters on', 'filters off', 'brightness',
-    'lights on', 'lights off', 'lights min', 'lights max',
-    'inferno', 'ember', 'viridian', 'cerulean', 'nebula',
-    'phone on', 'phone off',
-    'powerhouse on', 'powerhouse off',
-    'phone 2 on', 'phone 2 off',
-    'toothbrush on', 'toothbrush off',
-    'powerboard bootup', 'powerboard shutdown'
-  ];
-
-  function sortScripts(scripts) {
-    return [...scripts].sort((a, b) => {
-      const labelA = a.replace(/\.(bat|lnk|vbs)$/i, '').replace(/[-_]/g, ' ').toLowerCase();
-      const labelB = b.replace(/\.(bat|lnk|vbs)$/i, '').replace(/[-_]/g, ' ').toLowerCase();
-      const iA = DEVICE_ORDER.findIndex(o => labelA.includes(o));
-      const iB = DEVICE_ORDER.findIndex(o => labelB.includes(o));
-      if (iA === -1 && iB === -1) return labelA.localeCompare(labelB);
-      if (iA === -1) return 1;
-      if (iB === -1) return -1;
-      return iA - iB;
-    });
-  }
-
-  // 💡 for anything light/ambience-related; 🛡️ for everything else
-  function scriptIcon(name) {
-    const n = name.toLowerCase().replace(/[-_.]/g, ' ').replace(/\.(bat|lnk|vbs)$/i, '');
-    
-    const displayWords = ['bright', 'brightness', 'filter', 'filters'];
-    
-    const lightWords = [
-      'light', 'lights', 'lamp', 'bulb',
-      'ember', 'inferno', 'nebula', 'viridian', 'cerulean',
-      'glow', 'dim', 'warm', 'cool', 'white',
-      'colour', 'color', 'hue', 'kelvin', 'lumen'
-    ];
-  
-    if (displayWords.some(w => n.includes(w))) return '🔅';
-    if (lightWords.some(w => n.includes(w))) return '💡';
-    
-    return '🛡️';
-  }
-
-  function buildScriptButtons(scripts) {
-    sList.innerHTML = '';
-    if (!scripts.length) {
-      sList.innerHTML = '<div class="no-server">No scripts found in<br><code style="color:var(--accent2)">C:\\Scripts\\Tuya Scenes\\Bones</code></div>';
-      return;
-    }
-    sortScripts(scripts).forEach(name => {
-      const btn = document.createElement('button');
-      btn.className = 'script-btn';
-      const label = name.replace(/\.(bat|lnk|vbs)$/i, '').replace(/[-_]/g, ' ');
-      btn.innerHTML = `
-        <div class="btn-icon">${scriptIcon(name)}</div>
-        <span class="btn-name">${label}</span>
-        <span class="btn-arrow">▶</span>
-      `;
-      btn.addEventListener('click', () => runScript(name, btn));
-      sList.appendChild(btn);
-    });
-  }
-
-  function runScript(name, btn) {
-    btn.classList.add('fired');
-    fetch(`${SERVER}/run?script=${encodeURIComponent(name)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.ok) {
-          triggerFlash();
-          setTimeout(() => btn.classList.remove('fired'), 1800);
-        } else {
-          btn.classList.remove('fired');
+      function saveNotes() {
+        const notes = Object.fromEntries(editors.map(editor => [editor.dataset.note, editor.innerText]));
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(notes));
+          status.textContent = 'SAVED ON THIS PC';
+        } catch {
+          status.textContent = 'COULD NOT SAVE';
         }
-      })
-      .catch(() => btn.classList.remove('fired'));
-  }
+      }
+      for (const editor of editors) {
+        editor.addEventListener('input', () => {
+          status.textContent = 'SAVING…';
+          clearTimeout(saveTimer);
+          saveTimer = setTimeout(saveNotes, 250);
+        });
+      }
+      window.addEventListener('beforeunload', saveNotes);
+    })();
 
-  function triggerFlash() {
-    const f = document.getElementById('flash');
-    f.style.opacity = '1';
-    setTimeout(() => f.style.opacity = '0', 80);
-  }
-
-  async function checkServer() {
-   try {
-     const r = await fetch(`${SERVER}/ping`, { signal: AbortSignal.timeout(4000) });
-     const d = await r.json();
-     if (d.alive) {
-       dot.classList.add('online');
-       stxt.textContent = 'Bridge online';
-       if (sList.children.length < 2) loadScripts(); 
-     }
-   } catch {
-     dot.classList.remove('online');
-     stxt.textContent = 'Connecting...';
-   }
- }
-
-  async function loadScripts() {
-    try {
-      const r = await fetch(`${SERVER}/list`);
-      const d = await r.json();
-      buildScriptButtons(d.scripts || []);
-    } catch {}
-  }
-
-  checkServer();
-  setInterval(checkServer, 10000);
-
-  /* ══════════════════════════════════════════
-     HOVER-TO-SCROLL
-  ══════════════════════════════════════════ */
-  (function () {
-    const content = document.getElementById('tuya-content');
-    const zTop    = document.getElementById('scroll-zone-top');
-    const zBot    = document.getElementById('scroll-zone-bottom');
-    const SPEED   = 12;
-    let rafId     = null;
-    let dir       = 0;
-
-    function updateZones() {
-      zTop.classList.toggle('hidden', content.scrollTop <= 0);
-      zBot.classList.toggle('hidden', content.scrollTop + content.clientHeight >= content.scrollHeight - 1);
-    }
-
-    function tick() {
-      content.scrollTop += dir * SPEED;
-      updateZones();
-      rafId = requestAnimationFrame(tick);
-    }
-
-    function start(d) { dir = d; if (!rafId) rafId = requestAnimationFrame(tick); }
-    function stop()   { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
-
-    zTop.addEventListener('mouseenter', () => start(-1));
-    zTop.addEventListener('mouseleave', stop);
-    zBot.addEventListener('mouseenter', () => start(1));
-    zBot.addEventListener('mouseleave', stop);
-    content.addEventListener('scroll', updateZones);
-
-    const obs = new MutationObserver(updateZones);
-    obs.observe(content, { childList: true, subtree: true });
-    updateZones();
-  })();
-
+    // Occasional decorative lightning flash.
+    (function lightningLoop() {
+      const delay = 8000 + Math.random() * 20000;
+      setTimeout(() => {
+        const flash = document.getElementById('flash');
+        flash.style.opacity = '1';
+        setTimeout(() => {
+          flash.style.opacity = '0';
+          setTimeout(() => {
+            flash.style.opacity = '1';
+            setTimeout(() => { flash.style.opacity = '0'; lightningLoop(); }, 80);
+          }, 120);
+        }, 60);
+      }, delay);
+    })();
   </script>
 </body>
 </html>
